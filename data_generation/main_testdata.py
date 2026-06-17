@@ -39,7 +39,6 @@ def generate_random_integers(start, end, count, min_difference=150):
 # --------------------------
 npd = 40  # Number of grid points for the CPML (damping) region
 tmax = 1.3  # Maximum propagation time (in seconds)
-Nx, Nz = 256, 256  # Number of grid points in x and z directions
 dx, dz = 10, 10  # Spatial grid spacing in x and z directions
 dt = 0.001  # Time sampling interval (in seconds)
 favg = 12  # Central frequency of the source wavelet
@@ -52,13 +51,6 @@ coef = [1.2112427, -0.08972168, 0.013842773, -0.0017656599, 0.00011867947]
 coef_d = cuda.to_device(coef)  # Transfer the coefficients to the GPU
 
 # --------------------------
-# Density model setup
-# --------------------------
-rho0 = np.ones((Nz, Nx))  # Create an initial density model with all values set to 1
-rho = np.pad(rho0, npd, mode='edge')  # Pad the density model to account for the CPML boundary
-rho_d = cuda.to_device(rho)  # Transfer the padded density model to the GPU
-
-# --------------------------
 # Seismic source generation
 # --------------------------
 Nt = int(tmax / dt) + 1  # Calculate the total number of time steps
@@ -67,77 +59,15 @@ sour = source(pfac, favg, Nt, dt)  # Generate the seismic source time function
 sour_d = cuda.to_device(sour)  # Transfer the source to the GPU
 
 # --------------------------
-# Initialize wavefield and memory variables
-# --------------------------
-shape = (Nz + 2 * npd, Nx + 2 * npd)  # Total grid shape including CPML boundaries
-
-# Velocity fields (vertical and horizontal components)
-vz = np.zeros(shape, dtype=np.float32)
-vx = np.zeros(shape, dtype=np.float32)
-
-# Stress fields
-pxx = np.zeros(shape, dtype=np.float32)
-pzz = np.zeros(shape, dtype=np.float32)
-pxz = np.zeros(shape, dtype=np.float32)
-
-# Memory variables for the absorbing boundary (CPML)
-s_px = np.zeros(shape, dtype=np.float32)
-s_pz = np.zeros(shape, dtype=np.float32)
-s_sx = np.zeros(shape, dtype=np.float32)
-s_sz = np.zeros(shape, dtype=np.float32)
-tau_p = np.zeros(shape, dtype=np.float32)
-tau_s = np.zeros(shape, dtype=np.float32)
-
-# Intermediate variables for wavefield separation
-mid_vxp = np.zeros(shape, dtype=np.float32)
-mid_vzp = np.zeros(shape, dtype=np.float32)
-mid_vxs = np.zeros(shape, dtype=np.float32)
-mid_vzs = np.zeros(shape, dtype=np.float32)
-
-# CPML-related variables for stress and velocity fields
-pml_pxxx = np.zeros(shape, dtype=np.float32)
-pml_pxzz = np.zeros(shape, dtype=np.float32)
-pml_pxzx = np.zeros(shape, dtype=np.float32)
-pml_pzzz = np.zeros(shape, dtype=np.float32)
-pml_vxx = np.zeros(shape, dtype=np.float32)
-pml_vzz = np.zeros(shape, dtype=np.float32)
-pml_vxz = np.zeros(shape, dtype=np.float32)
-pml_vzx = np.zeros(shape, dtype=np.float32)
-pml_tau_px = np.zeros(shape, dtype=np.float32)
-pml_tau_pz = np.zeros(shape, dtype=np.float32)
-pml_tau_sx = np.zeros(shape, dtype=np.float32)
-pml_tau_sz = np.zeros(shape, dtype=np.float32)
-
-# Additional intermediate variables for stress and memory
-xxx = np.zeros(shape, dtype=np.float32)
-xzz = np.zeros(shape, dtype=np.float32)
-xzx = np.zeros(shape, dtype=np.float32)
-zzz = np.zeros(shape, dtype=np.float32)
-tau_px = np.zeros(shape, dtype=np.float32)
-tau_pz = np.zeros(shape, dtype=np.float32)
-tau_sx = np.zeros(shape, dtype=np.float32)
-tau_sz = np.zeros(shape, dtype=np.float32)
-
-# --------------------------
-# CUDA kernel grid setup for time stepping
-# --------------------------
-threads_per_block = (16, 16)  # Define the number of threads per block for CUDA kernels
-blocks_per_grid_x = int(math.ceil(shape[0] / threads_per_block[0]))  # Calculate the number of blocks in x direction
-blocks_per_grid_y = int(math.ceil(shape[1] / threads_per_block[1]))  # Calculate the number of blocks in y direction
-blocks_per_grid = (blocks_per_grid_x, blocks_per_grid_y)  # Combine into grid dimensions
-
-# --------------------------
 # Simulation shot parameters
 # --------------------------
 nshot = 2  # Number of shots per velocity model
 nsnaps = 5  # Number of snapshots to save per shot
 
 # --------------------------
-# Load training velocity models
+# Test model list
 # --------------------------
-vp_train = np.load('../dataset/velocity_model/vp_test.npy')  # Load P-wave velocity models
-vs_train = np.load('../dataset/velocity_model/vs_test.npy')  # Load S-wave velocity models
-data_num = vp_train.shape[0]  # Total number of velocity models in the dataset
+md_list = ['seamarid', 'overthrust', 'otway', 'marmousi_small', 'marmousi']
 
 # --------------------------
 # Create training dataset file folder
@@ -146,15 +76,84 @@ dir_test = f'../dataset/test/'
 os.makedirs(dir_test, exist_ok=True)
 
 # Loop over each velocity model in the dataset
-for data_id in range(data_num):
-    vp0 = vp_train[data_id]
-    vs0 = vs_train[data_id]
+for md in md_list:
+    vp0 = np.load(f'../dataset/velocity_model/{md}_vp.npy')
+    vs0 = np.load(f'../dataset/velocity_model/{md}_vs.npy')
+    Nz, Nx = vp0.shape[0], vp0.shape[1]
+
     # Apply Gaussian smoothing to the velocity models
     vp0 = gaussian_filter(vp0, 2)
     vs0 = gaussian_filter(vs0, 2)
     # Pad the velocity models to include CPML boundaries
     vp = np.pad(vp0, npd, mode='edge')
     vs = np.pad(vs0, npd, mode='edge')
+
+    # --------------------------
+    # Initialize wavefield and memory variables
+    # --------------------------
+    shape = (Nz + 2 * npd, Nx + 2 * npd)  # Total grid shape including CPML boundaries
+
+    # Velocity fields (vertical and horizontal components)
+    vz = np.zeros(shape, dtype=np.float32)
+    vx = np.zeros(shape, dtype=np.float32)
+
+    # Stress fields
+    pxx = np.zeros(shape, dtype=np.float32)
+    pzz = np.zeros(shape, dtype=np.float32)
+    pxz = np.zeros(shape, dtype=np.float32)
+
+    # Memory variables for the absorbing boundary (CPML)
+    s_px = np.zeros(shape, dtype=np.float32)
+    s_pz = np.zeros(shape, dtype=np.float32)
+    s_sx = np.zeros(shape, dtype=np.float32)
+    s_sz = np.zeros(shape, dtype=np.float32)
+    tau_p = np.zeros(shape, dtype=np.float32)
+    tau_s = np.zeros(shape, dtype=np.float32)
+
+    # Intermediate variables for wavefield separation
+    mid_vxp = np.zeros(shape, dtype=np.float32)
+    mid_vzp = np.zeros(shape, dtype=np.float32)
+    mid_vxs = np.zeros(shape, dtype=np.float32)
+    mid_vzs = np.zeros(shape, dtype=np.float32)
+
+    # CPML-related variables for stress and velocity fields
+    pml_pxxx = np.zeros(shape, dtype=np.float32)
+    pml_pxzz = np.zeros(shape, dtype=np.float32)
+    pml_pxzx = np.zeros(shape, dtype=np.float32)
+    pml_pzzz = np.zeros(shape, dtype=np.float32)
+    pml_vxx = np.zeros(shape, dtype=np.float32)
+    pml_vzz = np.zeros(shape, dtype=np.float32)
+    pml_vxz = np.zeros(shape, dtype=np.float32)
+    pml_vzx = np.zeros(shape, dtype=np.float32)
+    pml_tau_px = np.zeros(shape, dtype=np.float32)
+    pml_tau_pz = np.zeros(shape, dtype=np.float32)
+    pml_tau_sx = np.zeros(shape, dtype=np.float32)
+    pml_tau_sz = np.zeros(shape, dtype=np.float32)
+
+    # Additional intermediate variables for stress and memory
+    xxx = np.zeros(shape, dtype=np.float32)
+    xzz = np.zeros(shape, dtype=np.float32)
+    xzx = np.zeros(shape, dtype=np.float32)
+    zzz = np.zeros(shape, dtype=np.float32)
+    tau_px = np.zeros(shape, dtype=np.float32)
+    tau_pz = np.zeros(shape, dtype=np.float32)
+    tau_sx = np.zeros(shape, dtype=np.float32)
+    tau_sz = np.zeros(shape, dtype=np.float32)
+
+    # --------------------------
+    # CUDA kernel grid setup for time stepping
+    # --------------------------
+    threads_per_block = (16, 16)  # Define the number of threads per block for CUDA kernels
+    blocks_per_grid_x = int(math.ceil(shape[0] / threads_per_block[0]))  # Calculate the number of blocks in x direction
+    blocks_per_grid_y = int(math.ceil(shape[1] / threads_per_block[1]))  # Calculate the number of blocks in y direction
+    blocks_per_grid = (blocks_per_grid_x, blocks_per_grid_y)  # Combine into grid dimensions
+
+    # --------------------------
+    # Density model setup
+    # --------------------------
+    rho0 = np.ones((Nz, Nx))  # Create an initial density model with all values set to 1
+    rho = np.pad(rho0, npd, mode='edge')  # Pad the density model to account for the CPML boundary
+    rho_d = cuda.to_device(rho)  # Transfer the padded density model to the GPU
 
     # --------------------------
     # Compute elastic parameters
@@ -185,12 +184,12 @@ for data_id in range(data_num):
     # Loop over simulation shots
     # --------------------------
     for ishot in range(nshot):
-        print(f'forward modeling for data {data_id} shot {ishot + 1}')
+        print(f'forward modeling for {md} shot {ishot + 1}')
         # Set source location:
         if ishot == 0:
             nsz = 0
             nsx = 128
-         else:
+        else:
             nsz = 128
             nsx = 128
 
@@ -309,7 +308,7 @@ for data_id in range(data_num):
       
                 # Save the snapshot data along with model parameters and source position into a .mat file
                 np.savez_compressed(
-                    f'{dir_test}data{data_id}_shot{ishot+1}_snap{snap_id}.npz',
+                    f'{dir_test}{md}_shot{ishot+1}_snap{snap_id}.npz',
                     vp=vp0,
                     vs=vs0,
                     snapit=it,
