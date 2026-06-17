@@ -1,6 +1,14 @@
-Reproducible material for **DW0091: Physics-informed conditional diffusion model for generalizable elastic wave-mode separation - Shijun Cheng, Xinru Mu, and Tariq Alkhalifah.**
+<div align="center">
 
-[Click here](https://kaust.sharepoint.com/:f:/r/sites/M365_Deepwave_Documents/Shared%20Documents/Restricted%20Area/REPORTS/DW0091?csf=1&web=1&e=uisveJ) to access the Project Report. Authentication to the _Restricted Area_ filespace is required.
+<h3><strong>Physics-informed conditional diffusion model for generalizable elastic wave-mode separation</strong></h2>
+
+<h4>Shijun Cheng, Xinru Mu, Tariq Alkhalifah</h3>
+
+<h4><em>DeepWave Consortium, King Abdullah University of Science and Technology (KAUST)</em></h4>
+
+<p><em>Corresponding author: Shijun Cheng (<a href="mailto:sjcheng.academic@gmail.com">sjcheng.academic@gmail.com</a>)</em></p>
+
+</div>
 
 # Project structure
 This repository is organized as follows:
@@ -59,5 +67,22 @@ python ./diff_separation/sample.py
 configurations may be required for different combinations of workstation and GPU. If your graphics card does not large batch size training, please reduce the configuration value of args (`batch_size`) in the `diff_separation/train.py` file.
 
 ## Cite us 
-DW0091 - Cheng et al. (2025) Physics-informed conditional diffusion model for generalizable elastic wave-mode separation.
+```bibtex
+@article{cheng2025physics,
+  title={Physics-informed conditional diffusion model for generalizable elastic wave-mode separation},
+  author={Cheng, Shijun and Mu, Xinru and Alkhalifah, Tariq},
+  journal={arXiv preprint arXiv:2506.23007},
+  year={2025}
+}
+@inproceedings{cheng2025generative,
+  title={A generative neural operator for seismic wavefield representation},
+  author={Cheng, S and Taufik, MH and Alkhalifah, T},
+  booktitle={86th EAGE Annual Conference \& Exhibition},
+  volume={2025},
+  number={1},
+  pages={1--5},
+  year={2025},
+  organization={European Association of Geoscientists \& Engineers}
+}
+```
 
