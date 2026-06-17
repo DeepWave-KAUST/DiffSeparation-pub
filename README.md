@@ -1,3 +1,5 @@
+![LOGO](https://github.com/DeepWave-Kaust/DiffSeparation-pub/blob/main/logo/logo.jpg)
+
 <div align="center">
 
 <h3><strong>Physics-informed conditional diffusion model for generalizable elastic wave-mode separation</strong></h2>
