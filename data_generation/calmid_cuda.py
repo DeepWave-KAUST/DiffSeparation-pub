@@ -1,111 +1,244 @@
 import numpy as np
 from numba import cuda
 
+
+# ================================================================
+# CUDA kernel: calmid1_cuda
+# ================================================================
+# Purpose:
+#   This CUDA kernel computes the first-order spatial derivatives of the
+#   two-component elastic velocity wavefield (vx, vz), and then obtains:
+#
+#       1. divw = ∂vx/∂x + ∂vz/∂z
+#          which is the divergence of the velocity wavefield.
+#
+#       2. curw = ∂vx/∂z - ∂vz/∂x
+#          which is the curl-related quantity of the velocity wavefield.
+#
+#   These two quantities are intermediate variables for Helmholtz
+#   decomposition-based P/S wavefield separation.
+#
+# Inputs:
+#   shape : tuple
+#       Shape of the padded computational domain, including CPML layers.
+#       shape[0] is the number of grid points in z direction.
+#       shape[1] is the number of grid points in x direction.
+#
+#   dx, dz : float
+#       Spatial grid intervals in x and z directions.
+#
+#   coef : device array
+#       Finite-difference coefficients used for high-order spatial derivatives.
+#
+#   kk : int
+#       Number of finite-difference coefficients. It also defines the half-width
+#       of the finite-difference stencil.
+#
+#   vx, vz : device arrays
+#       Horizontal and vertical components of the elastic velocity wavefield.
+#
+# Outputs:
+#   xx : device array
+#       Approximation of ∂vx/∂x.
+#
+#   zz : device array
+#       Approximation of ∂vz/∂z.
+#
+#   xz : device array
+#       Approximation of ∂vx/∂z.
+#
+#   zx : device array
+#       Approximation of ∂vz/∂x.
+#
+#   divw : device array
+#       Divergence of the velocity wavefield.
+#
+#   curw : device array
+#       Curl-related quantity of the velocity wavefield.
+# ================================================================
 @cuda.jit
 def calmid1_cuda(shape, dx, dz, coef, kk, vx, vz, xx, zz, xz, zx, divw, curw):
-    """
-    CUDA kernel to compute intermediate spatial derivatives from the velocity fields.
-    
-    This kernel calculates the divergence (divw) and curl (curw) components of the wavefield,
-    as well as intermediate derivatives (xx, zz, xz, zx) used in further processing.
-    
-    Parameters:
-      shape: Tuple (pnz, pnx) giving the total grid dimensions including boundaries.
-      dx, dz: Spatial grid spacing in x and z directions.
-      coef: Array of finite-difference coefficients.
-      kk: Order of the finite-difference scheme.
-      vx, vz: Input velocity fields in the x (horizontal) and z (vertical) directions.
-      xx, zz: Output arrays to store computed spatial derivatives along x and z, respectively.
-      xz, zx: Output arrays to store additional cross-derivative components.
-      divw: Output array to store the divergence (sum of xx and zz).
-      curw: Output array to store the curl (difference between xz and zx).
-    """
-    # Extract grid dimensions from the shape parameter
+
+    # Number of grid points in x and z directions for the padded domain.
     pnx = shape[1]
     pnz = shape[0]
 
-    # Determine the current thread's indices in the grid
+    # Global thread indices.
+    # Here, iz corresponds to the z-direction index,
+    # and ix corresponds to the x-direction index.
     iz = cuda.threadIdx.x + cuda.blockDim.x * cuda.blockIdx.x
     ix = cuda.threadIdx.y + cuda.blockDim.y * cuda.blockIdx.y
 
-    # Check if the thread is within the valid computation region (avoid boundaries)
+    # Avoid computing near the boundary where the finite-difference stencil
+    # would exceed the valid computational domain.
     if kk <= iz < pnz - kk and kk <= ix < pnx - kk:
-        # Initialize temporary variables for spatial derivative computations.
-        # Compute derivatives in the x and z directions for divergence.
+
+        # ------------------------------------------------------------
+        # Compute ∂vx/∂x and ∂vz/∂z.
+        #
+        # diff1 approximates the x-derivative of vx.
+        # diff2 approximates the z-derivative of vz.
+        #
+        # The finite-difference stencil is written in a staggered-grid-like
+        # form, which is commonly used in elastic wave equation modeling.
+        # ------------------------------------------------------------
         diff1, diff2 = 0.0, 0.0
+
         for ii in range(1, kk + 1):
-            # Finite-difference approximation for x-derivative of vx:
-            # The difference between forward and backward samples weighted by coefficients.
-            diff1 += coef[ii - 1] * (vx[iz, ix + ii] - vx[iz, ix - ii + 1])
-            # Finite-difference approximation for z-derivative of vz:
-            diff2 += coef[ii - 1] * (vz[iz + ii - 1, ix] - vz[iz - ii, ix])
-        # Normalize the derivative estimates by the grid spacing.
+            diff1 += coef[ii - 1] * (
+                vx[iz, ix + ii] - vx[iz, ix - ii + 1]
+            )
+
+            diff2 += coef[ii - 1] * (
+                vz[iz + ii - 1, ix] - vz[iz - ii, ix]
+            )
+
+        # Store the spatial derivatives.
         xx[iz, ix] = diff1 / dx
         zz[iz, ix] = diff2 / dz
-        # The divergence is the sum of the spatial derivatives along x and z.
+
+        # Compute divergence:
+        # div(v) = ∂vx/∂x + ∂vz/∂z
         divw[iz, ix] = xx[iz, ix] + zz[iz, ix]
 
-        # Next, compute cross-derivative components related to the curl.
+        # ------------------------------------------------------------
+        # Compute ∂vz/∂x and ∂vx/∂z.
+        #
+        # diff1 approximates the x-derivative of vz.
+        # diff2 approximates the z-derivative of vx.
+        # ------------------------------------------------------------
         diff1, diff2 = 0.0, 0.0
+
         for ii in range(1, kk + 1):
-            # Finite-difference approximation for x-derivative of vz (shifted index)
-            diff1 += coef[ii - 1] * (vz[iz, ix + ii - 1] - vz[iz, ix - ii])
-            # Finite-difference approximation for z-derivative of vx (shifted index)
-            diff2 += coef[ii - 1] * (vx[iz + ii, ix] - vx[iz - ii + 1, ix])
-        # Normalize the derivative estimates by the grid spacing.
+            diff1 += coef[ii - 1] * (
+                vz[iz, ix + ii - 1] - vz[iz, ix - ii]
+            )
+
+            diff2 += coef[ii - 1] * (
+                vx[iz + ii, ix] - vx[iz - ii + 1, ix]
+            )
+
+        # Store the spatial derivatives.
         zx[iz, ix] = diff1 / dx
         xz[iz, ix] = diff2 / dz
-        # The curl (curw) is defined as the difference between these cross-derivatives.
+
+        # Compute curl-related quantity:
+        # curl(v) = ∂vx/∂z - ∂vz/∂x
         curw[iz, ix] = xz[iz, ix] - zx[iz, ix]
 
+
+# ================================================================
+# CUDA kernel: calmid2_cuda
+# ================================================================
+# Purpose:
+#   This CUDA kernel computes the spatial derivatives of the divergence
+#   and curl-related quantities obtained from calmid1_cuda.
+#
+#   Specifically, it computes:
+#
+#       mid_vxp = ∂(divw)/∂x
+#       mid_vzp = ∂(divw)/∂z
+#
+#   which are associated with the P-wave component, and
+#
+#       mid_vxs = ∂(curw)/∂z
+#       mid_vzs = -∂(curw)/∂x
+#
+#   which are associated with the S-wave component.
+#
+#   These quantities are intermediate variables used for elastic
+#   wavefield separation based on Helmholtz decomposition.
+#
+# Inputs:
+#   shape : tuple
+#       Shape of the padded computational domain, including CPML layers.
+#
+#   dx, dz : float
+#       Spatial grid intervals in x and z directions.
+#
+#   coef : device array
+#       Finite-difference coefficients.
+#
+#   kk : int
+#       Number of finite-difference coefficients.
+#
+#   vx, vz : device arrays
+#       Horizontal and vertical velocity components.
+#       These variables are included for consistency with the calling interface,
+#       although they are not directly used in this kernel.
+#
+#   divw : device array
+#       Divergence of the velocity wavefield.
+#
+#   curw : device array
+#       Curl-related quantity of the velocity wavefield.
+#
+# Outputs:
+#   mid_vxp, mid_vzp : device arrays
+#       Intermediate P-wave-related components computed from the gradient
+#       of the divergence field.
+#
+#   mid_vxs, mid_vzs : device arrays
+#       Intermediate S-wave-related components computed from the curl field.
+# ================================================================
 @cuda.jit
-def calmid2_cuda(shape, dx, dz, coef, kk, vx, vz, divw, curw, 
+def calmid2_cuda(shape, dx, dz, coef, kk, vx, vz, divw, curw,
                  mid_vxp, mid_vzp, mid_vxs, mid_vzs):
-    """
-    CUDA kernel to compute additional intermediate variables used for elastic wave separation.
-    
-    This kernel calculates derivatives based on the divergence (divw) and curl (curw) 
-    computed in the first kernel, which are used to separate the wavefield into different components.
-    
-    Parameters:
-      shape: Tuple (pnz, pnx) giving the total grid dimensions including boundaries.
-      dx, dz: Spatial grid spacing in x and z directions.
-      coef: Array of finite-difference coefficients.
-      kk: Order of the finite-difference scheme.
-      vx, vz: Input velocity fields (not used directly in computation here but passed for consistency).
-      divw: Array containing the divergence of the wavefield computed previously.
-      curw: Array containing the curl of the wavefield computed previously.
-      mid_vxp, mid_vzp: Output arrays to store the derivatives (tau_px and tau_pz) from divergence.
-      mid_vxs, mid_vzs: Output arrays to store the derivatives (tau_sx and tau_sz) from curl.
-    """
-    # Extract grid dimensions from the shape parameter
+
+    # Number of grid points in x and z directions for the padded domain.
     pnx = shape[1]
     pnz = shape[0]
 
-    # Determine the current thread's indices in the grid
+    # Global thread indices.
     iz = cuda.threadIdx.x + cuda.blockDim.x * cuda.blockIdx.x
     ix = cuda.threadIdx.y + cuda.blockDim.y * cuda.blockIdx.y
 
-    # Check if the thread is within the valid computation region (avoid boundaries)
+    # Avoid computing near the boundary where the finite-difference stencil
+    # would exceed the valid computational domain.
     if kk <= iz < pnz - kk and kk <= ix < pnx - kk:
-        # Compute derivatives from the divergence (divw) for tau_px and tau_pz
+
+        # ------------------------------------------------------------
+        # Compute the gradient of the divergence field.
+        #
+        # mid_vxp approximates ∂(divw)/∂x.
+        # mid_vzp approximates ∂(divw)/∂z.
+        #
+        # These two components are related to the P-wave part of the
+        # elastic wavefield.
+        # ------------------------------------------------------------
         diff1, diff2 = 0.0, 0.0
+
         for ii in range(1, kk + 1):
-            # Finite-difference approximation along x using divergence values
-            diff1 += coef[ii - 1] * (divw[iz, ix + ii - 1] - divw[iz, ix - ii])
-            # Finite-difference approximation along z using divergence values
-            diff2 += coef[ii - 1] * (divw[iz + ii, ix] - divw[iz - ii + 1, ix])
-        # Normalize by grid spacing to obtain the derivative estimates.
+            diff1 += coef[ii - 1] * (
+                divw[iz, ix + ii - 1] - divw[iz, ix - ii]
+            )
+
+            diff2 += coef[ii - 1] * (
+                divw[iz + ii, ix] - divw[iz - ii + 1, ix]
+            )
+
         mid_vxp[iz, ix] = diff1 / dx
         mid_vzp[iz, ix] = diff2 / dz
 
-        # Compute derivatives from the curl (curw) for tau_sx and tau_sz
+        # ------------------------------------------------------------
+        # Compute derivatives of the curl-related field.
+        #
+        # mid_vxs approximates ∂(curw)/∂z.
+        # mid_vzs approximates -∂(curw)/∂x.
+        #
+        # These two components are related to the S-wave part of the
+        # elastic wavefield.
+        # ------------------------------------------------------------
         diff1, diff2 = 0.0, 0.0
+
         for ii in range(1, kk + 1):
-            # Finite-difference approximation along z using curl values
-            diff1 += coef[ii - 1] * (curw[iz + ii - 1, ix] - curw[iz - ii, ix])
-            # Finite-difference approximation along x using curl values
-            diff2 += coef[ii - 1] * (curw[iz, ix + ii] - curw[iz, ix - ii + 1])
-        # Normalize by grid spacing; note the negative sign for the x-derivative of curl.
+            diff1 += coef[ii - 1] * (
+                curw[iz + ii - 1, ix] - curw[iz - ii, ix]
+            )
+
+            diff2 += coef[ii - 1] * (
+                curw[iz, ix + ii] - curw[iz, ix - ii + 1]
+            )
+
         mid_vxs[iz, ix] = diff1 / dz
         mid_vzs[iz, ix] = -diff2 / dx

@@ -902,7 +902,7 @@ class GaussianDiffusion:
         # ddim_sample. The factor 2 * pde_loss makes the guidance strength depend
         # on the current physics residual magnitude.
         return (
-            weight_t * grad * scale_factor
+            weight_t * grad * scale_factor,
             th.sqrt((th.pow(loss_vxp, 2)).mean() + (th.pow(loss_vzp, 2)).mean()).item(),
         )
 

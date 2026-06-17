@@ -451,7 +451,7 @@ def create_argparser():
         scale_factor=5,
 
         # Checkpoint filename prefix.
-        model_path="./checkpoints/trained_model.pt",
+        model_path="../trained_model/trained_model_singlefreq.pt",
     )
 
     # Add model and diffusion defaults:

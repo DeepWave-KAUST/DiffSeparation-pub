@@ -20,20 +20,6 @@ import random
 from scipy.ndimage import gaussian_filter
 import os
 
-def generate_random_integers(start, end, count, min_difference=150):
-    """
-    Generate a list of 'count' random integers between 'start' and 'end'
-    ensuring that the difference between any two numbers is at least 'min_difference'.
-    """
-    numbers = []
-    while len(numbers) < count:
-        num = random.randint(start, end)
-        # Check if the new number satisfies the minimum difference condition with all existing numbers
-        if all(abs(num - existing) >= min_difference for existing in numbers):
-            numbers.append(num)
-    return numbers
-
-
 # --------------------------
 # Parameter settings
 # --------------------------
