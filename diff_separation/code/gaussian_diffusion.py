@@ -846,9 +846,7 @@ class GaussianDiffusion:
             Spatial grid spacing.
 
         weight_t : torch.Tensor
-            Reverse-process variance or timestep-dependent weight. It is passed
-            for compatibility, although it is not explicitly used in this
-            implementation.
+            Reverse-process variance or timestep-dependent weight.
 
         scale_factor : float
             Scaling factor controlling the strength of physics guidance.
@@ -904,7 +902,7 @@ class GaussianDiffusion:
         # ddim_sample. The factor 2 * pde_loss makes the guidance strength depend
         # on the current physics residual magnitude.
         return (
-            2 * pde_loss * grad * scale_factor,
+            weight_t * grad * scale_factor
             th.sqrt((th.pow(loss_vxp, 2)).mean() + (th.pow(loss_vzp, 2)).mean()).item(),
         )
 
