@@ -1,23 +1,31 @@
-![LOGO](https://github.com/DeepWave-Kaust/Project-Template/blob/main/asset/logo.png)
+Reproducible material for **DW0091: Physics-informed conditional diffusion model for generalizable elastic wave-mode separation - Shijun Cheng, Xinru Mu, and Tariq Alkhalifah.**
 
-Reproducible material for **XXX - Author M., Author M., Author C.**
-
-[Click here](https://kaust.sharepoint.com/:f:/r/sites/M365_Deepwave_Documents/Shared%20Documents/Restricted%20Area/DWxxxxxxxx) to access the Project Report. Authentication to the _Restricted Area_ filespace is required.
+[Click here](https://kaust.sharepoint.com/:f:/r/sites/M365_Deepwave_Documents/Shared%20Documents/Restricted%20Area/REPORTS/DW0091?csf=1&web=1&e=uisveJ) to access the Project Report. Authentication to the _Restricted Area_ filespace is required.
 
 # Project structure
 This repository is organized as follows:
 
-* :open_file_folder: **package**: python library containing routines for ....;
-* :open_file_folder: **asset**: folder containing logo;
-* :open_file_folder: **data**: folder containing data (or instructions on how to retrieve the data
-* :open_file_folder: **notebooks**: set of jupyter notebooks reproducing the experiments in the paper (see below for more details);
-* :open_file_folder: **scripts**: set of python scripts used to run multiple experiments ...
+* :open_file_folder: **diff_separation**: python library containing diffusion P/S separation.
+* :open_file_folder: **data_generation**: python library to generate the training and testing dataset.
 
-## Notebooks
-The following notebooks are provided:
+## Supplementary files
+To ensure reproducibility, we provide the the data set for both training and sampling stages and our trainined GNO model. 
 
-- :orange_book: ``X1.ipynb``: notebook performing ...;
-- :orange_book: ``X2.ipynb``: notebook performing ...
+* **Training and Testing data set**:
+Since the dataset is so large, we provide the velocity models [here](https://kaust.sharepoint.com/:u:/r/sites/M365_Deepwave_Documents/Shared%20Documents/Restricted%20Area/REPORTS/DW0091/dataset.zip?csf=1&web=1&e=kUj6Wl) used for training and testing. You can use the data generation script and the velocity models to generate training and testing datasets.
+
+For genereting the training dataset, you can directly run:
+```
+python ./data_generation/main_traindata.py
+```
+
+For genereting the testing dataset, you can directly run:
+```
+python ./data_generation/main_testdata.py
+```
+
+* **Trained model**:
+Download our trained model [here](https://kaust.sharepoint.com/:u:/r/sites/M365_Deepwave_Documents/Shared%20Documents/Restricted%20Area/REPORTS/DW0091/trainmodel.zip?csf=1&web=1&e=rWsOYg). 
 
 
 ## Getting started :space_invader: :robot:
@@ -31,12 +39,25 @@ It will take some time, if at the end you see the word `Done!` on your terminal 
 
 Remember to always activate the environment by typing:
 ```
-conda activate my_env
+conda activate diffseparation
 ```
 
-**Disclaimer:** All experiments have been carried on a Intel(R) Xeon(R) CPU @ 2.10GHz equipped with a single NVIDIA GEForce RTX 3090 GPU. Different environment 
-configurations may be required for different combinations of workstation and GPU.
+## Running code :page_facing_up:
+When you have downloaded the supplementary files and have installed the environment, you can run the training and inference code. 
+
+For traning, you can directly run:
+```
+python ./diff_separation/train.py
+```
+
+When you test the performance of our trained model, you can use the testing data we provide, and directly run:
+```
+python ./diff_separation/sample.py
+```
+
+**Disclaimer:** All experiments have been carried on a Intel(R) Xeon(R) CPU @ 2.10GHz equipped with a single NVIDIA GEForce A100 GPU. Different environment 
+configurations may be required for different combinations of workstation and GPU. If your graphics card does not large batch size training, please reduce the configuration value of args (`batch_size`) in the `diff_separation/train.py` file.
 
 ## Cite us 
-DWXXX - Author1 et al. (2022) Report title.
+DW0091 - Cheng et al. (2025) Physics-informed conditional diffusion model for generalizable elastic wave-mode separation.
 
