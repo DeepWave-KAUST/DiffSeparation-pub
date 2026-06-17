@@ -185,138 +185,149 @@ for data_id in range(data_num):
     # Loop over simulation shots
     # --------------------------
     for ishot in range(nshot):
-       print(f'forward modeling for data {data_id} shot {ishot + 1}')
-       # Set source location:
-       # For the first shot, set depth to 0 and choose a random x position;
-       # for subsequent shots, choose random positions within specified bounds.
-       if ishot == 0:
-          nsz = 0
-          nsx = random.randint(1, Nx - 2)
-       else:
-          nsz = random.randint(10, Nz - 10)
-          nsx = random.randint(10, Nx - 10)
+        print(f'forward modeling for data {data_id} shot {ishot + 1}')
+        # Set source location:
+        # For the first shot, set depth to 0 and choose a random x position;
+        # for subsequent shots, choose random positions within specified bounds.
+        if ishot == 0:
+            nsz = 0
+            nsx = random.randint(1, Nx - 2)
+        else:
+            nsz = random.randint(10, Nz - 10)
+            nsx = random.randint(10, Nx - 10)
        
-       # --------------------------
-       # Copy initial fields and memory variables to the GPU for this shot
-       # --------------------------
-       vz_d = cuda.to_device(vz)
-       vx_d = cuda.to_device(vx)
-       pxx_d = cuda.to_device(pxx)
-       pzz_d = cuda.to_device(pzz)
-       pxz_d = cuda.to_device(pxz)
-       s_px_d = cuda.to_device(s_px)
-       s_pz_d = cuda.to_device(s_pz)
-       s_sx_d = cuda.to_device(s_sx)
-       s_sz_d = cuda.to_device(s_sz)
-       tau_p_d = cuda.to_device(tau_p)
-       tau_s_d = cuda.to_device(tau_s)
+        # --------------------------
+        # Copy initial fields and memory variables to the GPU for this shot
+        # --------------------------
+        vz_d = cuda.to_device(vz)
+        vx_d = cuda.to_device(vx)
+        pxx_d = cuda.to_device(pxx)
+        pzz_d = cuda.to_device(pzz)
+        pxz_d = cuda.to_device(pxz)
+        s_px_d = cuda.to_device(s_px)
+        s_pz_d = cuda.to_device(s_pz)
+        s_sx_d = cuda.to_device(s_sx)
+        s_sz_d = cuda.to_device(s_sz)
+        tau_p_d = cuda.to_device(tau_p)
+        tau_s_d = cuda.to_device(tau_s)
 
-       mid_vxp_d = cuda.to_device(mid_vxp)
-       mid_vzp_d = cuda.to_device(mid_vzp)
-       mid_vxs_d = cuda.to_device(mid_vxs)
-       mid_vzs_d = cuda.to_device(mid_vzs)
+        mid_vxp_d = cuda.to_device(mid_vxp)
+        mid_vzp_d = cuda.to_device(mid_vzp)
+        mid_vxs_d = cuda.to_device(mid_vxs)
+        mid_vzs_d = cuda.to_device(mid_vzs)
 
-       pml_pxxx_d = cuda.to_device(pml_pxxx)
-       pml_pxzz_d = cuda.to_device(pml_pxzz)
-       pml_pxzx_d = cuda.to_device(pml_pxzx)
-       pml_pzzz_d = cuda.to_device(pml_pzzz)
-       pml_vxx_d = cuda.to_device(pml_vxx)
-       pml_vzz_d = cuda.to_device(pml_vzz)
-       pml_vxz_d = cuda.to_device(pml_vxz)
-       pml_vzx_d = cuda.to_device(pml_vzx)
-       pml_tau_px_d = cuda.to_device(pml_tau_px)
-       pml_tau_pz_d = cuda.to_device(pml_tau_pz)
-       pml_tau_sx_d = cuda.to_device(pml_tau_sx)
-       pml_tau_sz_d = cuda.to_device(pml_tau_sz)
+        pml_pxxx_d = cuda.to_device(pml_pxxx)
+        pml_pxzz_d = cuda.to_device(pml_pxzz)
+        pml_pxzx_d = cuda.to_device(pml_pxzx)
+        pml_pzzz_d = cuda.to_device(pml_pzzz)
+        pml_vxx_d = cuda.to_device(pml_vxx)
+        pml_vzz_d = cuda.to_device(pml_vzz)
+        pml_vxz_d = cuda.to_device(pml_vxz)
+        pml_vzx_d = cuda.to_device(pml_vzx)
+        pml_tau_px_d = cuda.to_device(pml_tau_px)
+        pml_tau_pz_d = cuda.to_device(pml_tau_pz)
+        pml_tau_sx_d = cuda.to_device(pml_tau_sx)
+        pml_tau_sz_d = cuda.to_device(pml_tau_sz)
 
-       xxx_d = cuda.to_device(xxx)
-       xzz_d = cuda.to_device(xzz)
-       xzx_d = cuda.to_device(xzx)
-       zzz_d = cuda.to_device(zzz)
-       tau_px_d = cuda.to_device(tau_px)
-       tau_pz_d = cuda.to_device(tau_pz)
-       tau_sx_d = cuda.to_device(tau_sx)
-       tau_sz_d = cuda.to_device(tau_sz)
+        xxx_d = cuda.to_device(xxx)
+        xzz_d = cuda.to_device(xzz)
+        xzx_d = cuda.to_device(xzx)
+        zzz_d = cuda.to_device(zzz)
+        tau_px_d = cuda.to_device(tau_px)
+        tau_pz_d = cuda.to_device(tau_pz)
+        tau_sx_d = cuda.to_device(tau_sx)
+        tau_sz_d = cuda.to_device(tau_sz)
 
-       # --------------------------
-       # Generate random time indices to save snapshots
-       # --------------------------
-       random_it = generate_random_integers(100, Nt - 1, nsnaps)
-       snap_id = 1  # Snapshot counter
+        # --------------------------
+        # Generate random time indices to save snapshots
+        # --------------------------
+        random_it = generate_random_integers(100, Nt - 1, nsnaps)
+        snap_id = 1  # Snapshot counter
 
-       # --------------------------
-       # Time stepping loop for simulation
-       # --------------------------
-       for it in range(Nt):
-           # Add the seismic source to the vertical velocity field at the source location
-           vz_d[nsz + npd, nsx + npd] += sour_d[it]
+        # --------------------------
+        # Time stepping loop for simulation
+        # --------------------------
+        for it in range(Nt):
+            # Add the seismic source to the vertical velocity field at the source location
+            vz_d[nsz + npd, nsx + npd] += sour_d[it]
 
-           # Update velocity fields (first CUDA kernel)
-           updatev1_cuda[blocks_per_grid, threads_per_block](
-               shape, dx, dz, vz_d, vx_d, pxx_d, pzz_d, pxz_d, rho_d, dt, coef_d, kk,
-               ax_d, az_d, bx_d, bz_d, kxc_d, kzc_d, pml_pxxx_d, pml_pxzz_d, pml_pxzx_d,
-               pml_pzzz_d, tau_p_d, s_px_d, s_pz_d, pml_tau_px_d, pml_tau_pz_d,
-               tau_s_d, s_sx_d, s_sz_d, pml_tau_sx_d, pml_tau_sz_d,
-               xxx_d, xzz_d, xzx_d, zzz_d, tau_px_d, tau_pz_d, tau_sx_d, tau_sz_d
-           )
+            # Update velocity fields (first CUDA kernel)
+            updatev1_cuda[blocks_per_grid, threads_per_block](
+                shape, dx, dz, vz_d, vx_d, pxx_d, pzz_d, pxz_d, rho_d, dt, coef_d, kk,
+                ax_d, az_d, bx_d, bz_d, kxc_d, kzc_d, pml_pxxx_d, pml_pxzz_d, pml_pxzx_d,
+                pml_pzzz_d, tau_p_d, s_px_d, s_pz_d, pml_tau_px_d, pml_tau_pz_d,
+                tau_s_d, s_sx_d, s_sz_d, pml_tau_sx_d, pml_tau_sz_d,
+                xxx_d, xzz_d, xzx_d, zzz_d, tau_px_d, tau_pz_d, tau_sx_d, tau_sz_d
+            )
 
-           # Update velocity fields (second CUDA kernel)
-           updatev2_cuda[blocks_per_grid, threads_per_block](
-               shape, dx, dz, vz_d, vx_d, pxx_d, pzz_d, pxz_d, rho_d, dt, coef_d, kk,
-               ax_d, az_d, bx_d, bz_d, kxc_d, kzc_d, pml_pxxx_d, pml_pxzz_d, pml_pxzx_d,
-               pml_pzzz_d, tau_p_d, s_px_d, s_pz_d, pml_tau_px_d, pml_tau_pz_d,
-               tau_s_d, s_sx_d, s_sz_d, pml_tau_sx_d, pml_tau_sz_d,
-               xxx_d, xzz_d, xzx_d, zzz_d, tau_px_d, tau_pz_d, tau_sx_d, tau_sz_d
-           )
+            # Update velocity fields (second CUDA kernel)
+            updatev2_cuda[blocks_per_grid, threads_per_block](
+                shape, dx, dz, vz_d, vx_d, pxx_d, pzz_d, pxz_d, rho_d, dt, coef_d, kk,
+                ax_d, az_d, bx_d, bz_d, kxc_d, kzc_d, pml_pxxx_d, pml_pxzz_d, pml_pxzx_d,
+                pml_pzzz_d, tau_p_d, s_px_d, s_pz_d, pml_tau_px_d, pml_tau_pz_d,
+                tau_s_d, s_sx_d, s_sz_d, pml_tau_sx_d, pml_tau_sz_d,
+                xxx_d, xzz_d, xzx_d, zzz_d, tau_px_d, tau_pz_d, tau_sx_d, tau_sz_d
+            )
 
-           # Compute intermediate variables for wavefield separation using CUDA kernels
-           calmid1_cuda[blocks_per_grid, threads_per_block](shape, dx, dz, coef_d, kk, vx_d, vz_d, 
-                   xxx_d, xzz_d, xzx_d, zzz_d, tau_px_d, tau_pz_d
-           )
+            # Compute intermediate variables for wavefield separation using CUDA kernels
+            calmid1_cuda[blocks_per_grid, threads_per_block](shape, dx, dz, coef_d, kk, vx_d, vz_d, 
+                xxx_d, xzz_d, xzx_d, zzz_d, tau_px_d, tau_pz_d
+            )
 
-           calmid2_cuda[blocks_per_grid, threads_per_block](shape, dx, dz, coef_d, kk, vx_d, vz_d, 
-                   tau_px_d, tau_pz_d, 
-                   mid_vxp_d, mid_vzp_d, mid_vxs_d, mid_vzs_d
-           )
+            calmid2_cuda[blocks_per_grid, threads_per_block](shape, dx, dz, coef_d, kk, vx_d, vz_d, 
+                tau_px_d, tau_pz_d, 
+                mid_vxp_d, mid_vzp_d, mid_vxs_d, mid_vzs_d
+            )
 
-           # Update stress fields (first CUDA kernel)
-           updatep1_cuda[blocks_per_grid, threads_per_block](
-               shape, dx, dz, pxx_d, pzz_d, pxz_d, vz_d, vx_d, lamb_d, muon_d, dt,
-               coef_d, kk, ax_d, az_d, bx_d, bz_d, kxc_d, kzc_d, pml_vxx_d, pml_vzz_d,
-               pml_vxz_d, pml_vzx_d, tau_p_d, tau_s_d,
-               xxx_d, xzz_d, xzx_d, zzz_d
-           )
+            # Update stress fields (first CUDA kernel)
+            updatep1_cuda[blocks_per_grid, threads_per_block](
+                shape, dx, dz, pxx_d, pzz_d, pxz_d, vz_d, vx_d, lamb_d, muon_d, dt,
+                coef_d, kk, ax_d, az_d, bx_d, bz_d, kxc_d, kzc_d, pml_vxx_d, pml_vzz_d,
+                pml_vxz_d, pml_vzx_d, tau_p_d, tau_s_d,
+                xxx_d, xzz_d, xzx_d, zzz_d
+            )
 
-           # Update stress fields (second CUDA kernel)
-           updatep2_cuda[blocks_per_grid, threads_per_block](
-               shape, dx, dz, pxx_d, pzz_d, pxz_d, vz_d, vx_d, lamb_d, muon_d, dt,
-               coef_d, kk, ax_d, az_d, bx_d, bz_d, kxc_d, kzc_d, pml_vxx_d, pml_vzz_d,
-               pml_vxz_d, pml_vzx_d, tau_p_d, tau_s_d,
-               xxx_d, xzz_d, xzx_d, zzz_d
-           )
+            # Update stress fields (second CUDA kernel)
+            updatep2_cuda[blocks_per_grid, threads_per_block](
+                shape, dx, dz, pxx_d, pzz_d, pxz_d, vz_d, vx_d, lamb_d, muon_d, dt,
+                coef_d, kk, ax_d, az_d, bx_d, bz_d, kxc_d, kzc_d, pml_vxx_d, pml_vzz_d,
+                pml_vxz_d, pml_vzx_d, tau_p_d, tau_s_d,
+                xxx_d, xzz_d, xzx_d, zzz_d
+            )
 
-           # Save snapshots at selected time steps
-           if it in random_it:
-               # Copy wavefields from GPU to host memory (excluding CPML boundaries)
-               snapvx = vx_d[npd:npd + Nz, npd:npd + Nx].copy_to_host()
-               snapvz = vz_d[npd:npd + Nz, npd:npd + Nx].copy_to_host()
-               snapvx_p = s_px_d[npd:npd + Nz, npd:npd + Nx].copy_to_host()
-               snapvz_p = s_pz_d[npd:npd + Nz, npd:npd + Nx].copy_to_host()
-               snapvx_s = s_sx_d[npd:npd + Nz, npd:npd + Nx].copy_to_host()
-               snapvz_s = s_sz_d[npd:npd + Nz, npd:npd + Nx].copy_to_host()
-               snap_mid_vxp = mid_vxp_d[npd:npd + Nz, npd:npd + Nx].copy_to_host()
-               snap_mid_vzp = mid_vzp_d[npd:npd + Nz, npd:npd + Nx].copy_to_host()
-               snap_mid_vxs = mid_vxs_d[npd:npd + Nz, npd:npd + Nx].copy_to_host()
-               snap_mid_vzs = mid_vzs_d[npd:npd + Nz, npd:npd + Nx].copy_to_host()
+            # Save snapshots at selected time steps
+            if it in random_it:
+                # Copy wavefields from GPU to host memory (excluding CPML boundaries)
+                snapvx = vx_d[npd:npd + Nz, npd:npd + Nx].copy_to_host()
+                snapvz = vz_d[npd:npd + Nz, npd:npd + Nx].copy_to_host()
+                snapvx_p = s_px_d[npd:npd + Nz, npd:npd + Nx].copy_to_host()
+                snapvz_p = s_pz_d[npd:npd + Nz, npd:npd + Nx].copy_to_host()
+                snapvx_s = s_sx_d[npd:npd + Nz, npd:npd + Nx].copy_to_host()
+                snapvz_s = s_sz_d[npd:npd + Nz, npd:npd + Nx].copy_to_host()
+                snap_mid_vxp = mid_vxp_d[npd:npd + Nz, npd:npd + Nx].copy_to_host()
+                snap_mid_vzp = mid_vzp_d[npd:npd + Nz, npd:npd + Nx].copy_to_host()
+                snap_mid_vxs = mid_vxs_d[npd:npd + Nz, npd:npd + Nx].copy_to_host()
+                snap_mid_vzs = mid_vzs_d[npd:npd + Nz, npd:npd + Nx].copy_to_host()
       
-               # Save the snapshot data along with model parameters and source position into a .mat file
-               sio.savemat(f'{dir_train}data{data_id}_shot{ishot+1}_snap{snap_id}.mat', {
-                   'vp': vp0, 'vs': vs0, 'snapit': it, 'sz': nsz, 'sx': nsx, 
-                   'vx': snapvx, 'vz': snapvz, 'vx_p': snapvx_p, 'vz_p': snapvz_p, 
-                   'vx_s': snapvx_s, 'vz_s': snapvz_s,
-                   'mid_vxp': snap_mid_vxp, 'mid_vzp': snap_mid_vzp, 
-                   'mid_vxs': snap_mid_vxs, 'mid_vzs': snap_mid_vzs
-               })
-               snap_id += 1
+                # Save the snapshot data along with model parameters and source position into a .mat file
+                np.savez_compressed(
+                    f'{dir_train}data{data_id}_shot{ishot+1}_snap{snap_id}.npz',
+                    vp=vp0,
+                    vs=vs0,
+                    snapit=it,
+                    sz=nsz,
+                    sx=nsx,
+                    vx=snapvx,
+                    vz=snapvz,
+                    vx_p=snapvx_p,
+                    vz_p=snapvz_p,
+                    vx_s=snapvx_s,
+                    vz_s=snapvz_s,
+                    mid_vxp=snap_mid_vxp,
+                    mid_vzp=snap_mid_vzp,
+                    mid_vxs=snap_mid_vxs,
+                    mid_vzs=snap_mid_vzs
+                )
+                snap_id += 1
 
 print("Simulation complete.")
