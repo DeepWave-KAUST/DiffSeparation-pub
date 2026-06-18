@@ -84,8 +84,6 @@ The remaining velocity models are used to generate the testing datasets in the n
 * Marmousi
 * Otway
 
----
-
 ### Generating the datasets
 
 After downloading and extracting `dataset.zip`, the training and testing datasets can be regenerated using the scripts in the `data_generation` folder.
@@ -101,8 +99,6 @@ To generate the testing dataset, run:
 ```bash
 python ./data_generation/main_testdata.py
 ```
-
----
 
 ### Trained models
 
