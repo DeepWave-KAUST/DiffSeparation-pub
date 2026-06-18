@@ -243,9 +243,7 @@ You may also cite the Zenodo record for the released velocity models and trained
 ```bibtex
 @dataset{cheng2026diffseparation,
   author       = {Cheng, Shijun},
-  title        = {Dataset and Trained Models for "Physics-informed
-                   conditional diffusion model for generalizable
-                   elastic wave-mode separation"},
+  title        = {Dataset and Trained Models for "Physics-informed conditional diffusion model for generalizable elastic wave-mode separation"},
   year         = {2026},
   publisher    = {Zenodo},
   doi          = {10.5281/zenodo.20737311},
