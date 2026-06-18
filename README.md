@@ -50,8 +50,6 @@ To ensure reproducibility, we provide the velocity models required for dataset g
 
 Because the fully generated training and testing wavefield datasets are too large to upload directly, we provide the velocity models required to regenerate them. The executable data-generation scripts are included in the `data_generation` folder of this GitHub repository.
 
----
-
 ### Velocity models
 
 The file `dataset.zip` contains the velocity models used to generate both the training and testing datasets. After unzipping `dataset.zip`, the velocity models can be found in the `velocity_model` folder.
@@ -151,8 +149,6 @@ python ./diff_separation/train.py
 ```
 
 By default, the training uses the full 1000-step diffusion process with `timestep_respacing=""`.
-
----
 
 ### Sampling / inference
 
