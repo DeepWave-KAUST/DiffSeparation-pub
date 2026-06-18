@@ -236,16 +236,6 @@ If you find this repository useful, please cite our work:
   journal={arXiv preprint arXiv:2506.23007},
   year={2025}
 }
-@inproceedings{cheng2025generative,
-  title={A generative neural operator for seismic wavefield representation},
-  author={Cheng, S and Taufik, MH and Alkhalifah, T},
-  booktitle={86th EAGE Annual Conference \& Exhibition},
-  volume={2025},
-  number={1},
-  pages={1--5},
-  year={2025},
-  organization={European Association of Geoscientists \& Engineers}
-}
 ```
 
 You may also cite the Zenodo record for the released velocity models and trained models:
