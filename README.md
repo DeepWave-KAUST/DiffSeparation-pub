@@ -3,12 +3,6 @@
 
 <h3><strong>Physics-informed conditional diffusion model for generalizable elastic wave-mode separation</strong></h2>
 
-<h4>Shijun Cheng, Xinru Mu, Tariq Alkhalifah</h3>
-
-<h4><em>DeepWave Consortium, King Abdullah University of Science and Technology (KAUST)</em></h4>
-
-<p><em>Corresponding author: Shijun Cheng (<a href="mailto:sjcheng.academic@gmail.com">sjcheng.academic@gmail.com</a>)</em></p>
-
 </div>
 
 
