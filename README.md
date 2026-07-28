@@ -211,34 +211,6 @@ Different hardware or software configurations may require minor adjustments. If 
 
 ---
 
-## Citation
-
-If you find this repository useful, please cite our work:
-
-```bibtex
-@article{cheng2025physics,
-  title={Physics-informed conditional diffusion model for generalizable elastic wave-mode separation},
-  author={Cheng, Shijun and Mu, Xinru and Alkhalifah, Tariq},
-  journal={arXiv preprint arXiv:2506.23007},
-  year={2025}
-}
-```
-
-You may also cite the Zenodo record for the released velocity models and trained models:
-
-```bibtex
-@dataset{cheng2026diffseparation,
-  author       = {Cheng, Shijun},
-  title        = {Dataset and Trained Models for "Physics-informed conditional diffusion model for generalizable elastic wave-mode separation"},
-  year         = {2026},
-  publisher    = {Zenodo},
-  doi          = {10.5281/zenodo.20737311},
-  url          = {https://doi.org/10.5281/zenodo.20737311}
-}
-```
-
----
-
 ## License
 
 Please refer to the license file in this repository for usage terms.
